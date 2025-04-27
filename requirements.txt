@@ -1,0 +1,9 @@
+fastapi==0.103.0
+uvicorn==0.23.2
+pydantic==2.8.1
+dicttoxml==1.7.4
+pydantic-settings==2.0.3
+
+# for tests
+pytest==7.4.2
+httpx==0.24.1

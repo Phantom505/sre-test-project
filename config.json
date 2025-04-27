@@ -1,0 +1,5 @@
+{
+    "response_format": "detailed",
+    "include_metadata": true,
+    "response_application": "json"
+}

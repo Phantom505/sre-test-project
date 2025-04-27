@@ -1,0 +1,76 @@
+stages:
+  - test
+#  - jmeter
+  - build
+  - docker
+  - deploy
+
+variables:
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+
+# Testing
+test:
+  stage: test
+  image: python:3.9
+  script:
+    - pip install -r requirements.txt
+    - pytest
+  tags:
+    - gitlab-org
+
+#jmeter:
+#  stage: jmeter
+#  image: justb4/jmeter:5.4.1
+#  script:
+#    - jmeter -n -t /jmeter/jmeter.xml
+
+# Build
+build:
+  stage: build
+  image: python:3.9
+  script:
+    - pip install -r requirements.txt
+    - echo "Start build steps"
+  tags:
+    - gitlab-org
+
+
+# Create Docker image
+docker:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "Building Docker image..."
+    - docker build -t almusito/almus-project:$CI_COMMIT_REF_SLUG .
+    - echo "Logging in to Docker Hub..."
+    - echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u "$DOCKER_USERNAME" --password-stdin
+    - echo "Pushing Docker image to Docker Hub..."
+    - docker push almusito/almus-project:$CI_COMMIT_REF_SLUG
+  tags:
+    - gitlab-org
+  only:
+    - main
+
+
+# Deploy to Kubernetes
+deploy:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - echo "Configuring AWS CLI..."
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    - aws configure set region $AWS_REGION
+    - echo "Updating Kubernetes configuration..."
+    - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME
+    - echo "Updating Kubernetes deployment..."
+    - kubectl set image deployment/my-deployment my-container=$IMAGE_TAG
+    - kubectl rollout status deployment/my-deployment
+  tags:
+    - gitlab-org
+  only:
+    - main
+  environment:
+    name: production
